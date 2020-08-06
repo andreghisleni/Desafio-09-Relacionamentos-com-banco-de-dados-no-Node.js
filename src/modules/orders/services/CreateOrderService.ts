@@ -17,16 +17,65 @@ interface IRequest {
   products: IProduct[];
 }
 
+interface IFindProduct {
+  id: string;
+}
+
 @injectable()
 class CreateOrderService {
   constructor(
-    private ordersRepository: IOrdersRepository,
+    @inject('OrdersRepository') private ordersRepository: IOrdersRepository,
+    @inject('ProductsRepository')
     private productsRepository: IProductsRepository,
+    @inject('CustomersRepository')
     private customersRepository: ICustomersRepository,
-  ) {}
+  ) { } // eslint-disable-line
 
   public async execute({ customer_id, products }: IRequest): Promise<Order> {
-    // TODO
+    const foundCustomer = await this.customersRepository.findById(customer_id);
+
+    if (!foundCustomer) {
+      throw new AppError('Could not find customer');
+    }
+
+    const iFindProductsList = products.map<IFindProduct>(product => ({
+      id: product.id,
+    }));
+
+    const productsList = await this.productsRepository.findAllById(
+      iFindProductsList,
+    );
+
+    if (productsList.length !== products.length) {
+      throw new AppError('Invalid product in the list.');
+    }
+
+    const insuficientProductQuantity = productsList.find(
+      ({ quantity: product_quantity }) =>
+        products.find(
+          ({ quantity: request_product_quantity }) =>
+            request_product_quantity > product_quantity,
+        ),
+    );
+
+    if (insuficientProductQuantity) {
+      throw new AppError('Insuficient product quantity.');
+    }
+
+    const orders_product = productsList.map((product, product_index) => ({
+      product_id: product.id,
+      price: product.price,
+      quantity: products[product_index].quantity,
+    }));
+
+    await this.productsRepository.updateQuantity(products);
+
+    const order = await this.ordersRepository.create({
+      customer: { ...foundCustomer },
+      products: [...orders_product],
+    });
+
+    return order;
   }
 }
 
