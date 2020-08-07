@@ -22,6 +22,8 @@ export default class CreateProductsTable1596740404263
           {
             name: 'price',
             type: 'decimal',
+            precision: 10,
+            scale: 2,
           },
           {
             name: 'quantity',

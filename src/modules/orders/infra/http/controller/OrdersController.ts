@@ -20,8 +20,15 @@ export default class OrdersController {
     const { customer_id, products } = req.body;
 
     const createOrder = container.resolve(CreateOrderService);
-    const order = await createOrder.execute({ customer_id, products });
+    const { customer, order_products, ...order } = await createOrder.execute({
+      customer_id,
+      products,
+    });
 
-    return res.json(order);
+    return res.json({
+      customer,
+      order_products,
+      ...order,
+    });
   }
 }
